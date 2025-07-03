@@ -191,6 +191,7 @@ class GenfinService
                     'Authorization' => 'Bearer ' . $auth['authenticationGUID'],
                     'Accept' => 'application/json',
                 ],
+                'timeout' => 15,
                 'body' => json_encode($payload),
             ]);
 
