@@ -1,9 +1,13 @@
 <?php
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
-use Slim\Factory\AppFactory;
 
+use Slim\Factory\AppFactory;
+use DI\Container;
 use Dotenv\Dotenv;
+use App\Controllers\GenfinController;
+use App\Services\GenfinService;
+use Psr\Log\LoggerInterface;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -11,28 +15,27 @@ require __DIR__ . '/../vendor/autoload.php';
 $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
+// Set up DI container
+$container = new Container();
 
-require __DIR__ . '/../vendor/autoload.php';
+// 🔧 Bind LoggerInterface to Monolog
+$container->set(LoggerInterface::class, function () {
+    $logger = new Logger('genfin');
+    $logger->pushHandler(new StreamHandler(__DIR__ . '/../logs/app.log', Logger::DEBUG));
+    return $logger;
+});
 
+// 🔧 Bind GenfinService
+$container->set(GenfinService::class, function ($c) {
+    return new GenfinService($c->get(LoggerInterface::class));
+});
 
-
-
-
+// Set container to Slim
+AppFactory::setContainer($container);
 $app = AppFactory::create();
 
-$app->get('/', function (Request $request, Response $response, $args) {
-    $env = $_ENV['S3_BUCKET']; // 'local'
-    $response->getBody()->write( $env );
-    return $response;
-});
-
-$app->get('/about', function ($request, $response, $args) {
-    $response->getBody()->write("This is the About page.");
-    return $response;
-});
-
-
-
-
+// ✅ Define Routes
+$app->get('/', [GenfinController::class, 'index']);
+$app->post('/webhook', [GenfinController::class, 'webhook']);
 
 $app->run();
