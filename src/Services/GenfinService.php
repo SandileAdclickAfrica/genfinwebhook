@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use Psr\Log\LoggerInterface;
