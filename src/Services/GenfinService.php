@@ -2,20 +2,59 @@
 
 namespace App\Services;
 
-// sandile
-
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use Psr\Log\LoggerInterface;
+use App\Models\WebhookLog;
 
+/**
+ * Service class for interacting with the Genfin API.
+ *
+ * Handles authentication and lead submission to the Genfin system,
+ * and logs the webhook payload and response for auditing purposes.
+ */
 class GenfinService
 {
+    /**
+     * Logger for recording API activity and errors.
+     *
+     * @var LoggerInterface
+     */
     protected LoggerInterface $logger;
+
+    /**
+     * Guzzle HTTP client for making API requests.
+     *
+     * @var Client
+     */
     protected Client $client;
+
+    /**
+     * The base URL of the Genfin API.
+     *
+     * @var string
+     */
     protected string $baseUrl;
+
+    /**
+     * Username for API authentication.
+     *
+     * @var string
+     */
     protected string $username;
+
+    /**
+     * Password for API authentication.
+     *
+     * @var string
+     */
     protected string $password;
 
+    /**
+     * GenfinService constructor.
+     *
+     * @param LoggerInterface $logger A PSR-compliant logger instance.
+     */
     public function __construct(LoggerInterface $logger)
     {
         $this->logger = $logger;
@@ -32,194 +71,155 @@ class GenfinService
         ]);
     }
 
-    private function authentication()
+    /**
+     * Authenticates with the Genfin API using stored credentials.
+     *
+     * @return array Authentication result with GUIDs or error details.
+     */
+    private function authenticate(): array
     {
         try {
-            $url = 'authentication?username=' . $this->username . '&password=' . $this->password;
-
-            $response = $this->client->request('GET', $url);
+            $url = $this->buildAuthUrl();
+            $response = $this->client->get($url);
             $result = json_decode($response->getBody(), true);
 
             $this->logger->info('Genfin API Authentication:', $result);
             return $result;
-
         } catch (RequestException $e) {
-            $error = [
-                'error' => true,
-                'message' => $e->getMessage(),
-                'status' => $e->hasResponse() ? $e->getResponse()->getStatusCode() : null,
-                'body' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
-            ];
-
-            $this->logger->error('Genfin API Authentication Response:', $error);
-            return $error;
-
+            return $this->handleException($e, 'Genfin API Authentication Response');
         } catch (\Exception $e) {
-            $this->logger->error('Unexpected error during authentication', [
-                'message' => $e->getMessage()
-            ]);
-            return [
-                'error' => true,
-                'message' => 'Unexpected error: ' . $e->getMessage()
-            ];
+            return $this->handleGenericException($e, 'Unexpected error during authentication');
         }
     }
 
-    public function lead()
+    /**
+     * Submits a lead to the Genfin API and logs both the request and response.
+     *
+     * @param array $payloadData Data received from the webhook.
+     * @return array API response or error details.
+     */
+    public function logWebhookPayload(array $payloadData): array
     {
         try {
-            $auth = $this->authentication();
+            $auth = $this->authenticate();
 
-            // Fail early if authentication failed
+            // Return early if authentication fails
             if (!empty($auth['error'])) {
                 return $auth;
             }
 
-            $response = $this->client->request('POST', 'lead', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $auth['authenticationGUID']
-                ],
-                'json' => [
-                    "ipAddress" => "154.117.178.10",
-                    "guid" => $auth['apiGUID'],
-                    "loanAmount" => 120000,
-                    "tradeHistory" => true,
-                    "turnoverHistory" => true,
-                    "companyTradingName" => "CompName",
-                    "natureOfBusiness" => "Nature",
-                    "loanPurpose" => "Purpose",
-                    "premises" => "Owned",
-                    "numberEmployees" => "10-20",
-                    "websiteAddress" => "test.co.za",
-                    "hearAboutUs" => "Lead Provider",
-                    "firstName" => "First",
-                    "lastName" => "Last",
-                    "emailAddress" => "test@test.co.za",
-                    "primaryContactNumber" => "0123456789",
-                    "genfinRepresentative" => "GFRep",
-                    "comments" => "comments",
-                    "productSelection" => "OBL",
-                    "additionalContactNumber" => "0123456789",
-                    "source" => "WEB",
-                    "companyRegNumber" => "1234/123456/12",
-                    "affiliateNumber" => "Test0905",
-                    "autoEmail" => false,
-                    "confirmConsent" => true,
-                    "utmSource" => "utmS",
-                    "utmCampaign" => "utmC",
-                    "utmMedium" => "utmM",
-                    "utmContent" => "utmCon",
-                    "gcLid" => "glc",
-                    "extLinkID" => "extLink"
-                ],
-            ]);
+            // Build payload using auth result and request data
+            $payload = $this->preparePayload($payloadData, $auth['apiGUID']);
 
-            $body = json_decode($response->getBody(), true);
-            $this->logger->info('Lead API Response:', $body);
-            return $body;
-
-        } catch (RequestException $e) {
-            $error = [
-                'error' => true,
-                'message' => $e->getMessage(),
-                'status' => $e->hasResponse() ? $e->getResponse()->getStatusCode() : null,
-                'body' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
-            ];
-
-            $this->logger->error('Lead API request failed', $error);
-            return $error;
-
-        } catch (\Exception $e) {
-            $this->logger->error('Unexpected error in lead()', [
-                'message' => $e->getMessage()
-            ]);
-            return [
-                'error' => true,
-                'message' => 'Unexpected error: ' . $e->getMessage(),
-            ];
-        }
-    }
-
-
-    public function logWebhookPayload(  $payloadData )
-    {
-        try {
-            $auth = $this->authentication();
-
-            // Fail early if authentication failed
-            if (!empty($auth['error'])) {
-                return $auth;
-            }
-
-            // Prepare and clean the payload
-            $payload = [
-                "ipAddress"=> $payloadData['ipAddress'],
-                "guid"=> $auth['apiGUID'],
-                "loanAmount"=> 120000,
-                "tradeHistory"=> true,
-                "turnoverHistory"=> true,
-                "companyTradingName"=> "CompName",
-                "natureOfBusiness"=> "Nature",
-                "loanPurpose"=> "Purpose",
-                "premises" => "Owned",
-                "numberEmployees" => "10-20",
-                "websiteAddress"=> "test.co.za",
-                "hearAboutUs" => "Lead Provider",
-                "firstName" => "First",
-                "lastName" => "Last",
-                "emailAddress" => "test@test.co.za",
-                "primaryContactNumber" => "0123456789",
-                "genfinRepresentative" => "GFRep",
-                "comments" => "comments",
-                "productSelection" => "OBL",
-                "additionalContactNumber" => "0123456789",
-                "source" => "WEB",
-                "companyRegNumber" => "1234/123456/12",
-                "affiliateNumber" => "Test0905",
-                "autoEmail" => false,
-                "confirmConsent" => true,
-                "utmSource" => "utmS",
-                "utmCampaign" => "utmC",
-                "utmMedium" => "utmM",
-                "utmContent" => "utmCon",
-                "gcLid" => "glc",
-                "extLinkID" => "extLink",
-                //'leadValue' => $payloadData['leadValue'] ?? null,
-                //'tradeHistory' => filter_var($payloadData['tradeHistory'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            ];
-
-            $response = $this->client->request('POST', 'lead', [
+            // Submit payload to Genfin
+            $response = $this->client->post('lead', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $auth['authenticationGUID'],
-                    'Accept' => 'application/json',
                 ],
                 'timeout' => 15,
                 'body' => json_encode($payload),
             ]);
 
             $body = json_decode($response->getBody(), true);
+
+            // Log request/response to database
+            WebhookLog::create([
+                'payload' => json_encode($payload),
+                'response' => json_encode($body),
+                'status_code' => $response->getStatusCode(),
+                'ip_address' => $payloadData['ipAddress'] ?? null,
+            ]);
+
             $this->logger->info('Genfin API Lead Response:', $body);
             return $body;
 
         } catch (RequestException $e) {
-            $error = [
-                'error' => true,
-                'message' => $e->getMessage(),
-                'status' => $e->hasResponse() ? $e->getResponse()->getStatusCode() : null,
-                'body' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
-            ];
-
-            $this->logger->error('Genfin API Lead Response:', $error);
-            return $error;
-
+            return $this->handleException($e, 'Genfin API Lead Response');
         } catch (\Exception $e) {
-            $this->logger->error('Unexpected error in lead()', [
-                'message' => $e->getMessage()
-            ]);
-            return [
-                'error' => true,
-                'message' => 'Unexpected error: ' . $e->getMessage(),
-            ];
+            return $this->handleGenericException($e, 'Unexpected error in logWebhookPayload()');
         }
+    }
+
+    /**
+     * Builds the authentication URL with credentials as query parameters.
+     *
+     * @return string
+     */
+    private function buildAuthUrl(): string
+    {
+        return "authentication?username={$this->username}&password={$this->password}";
+    }
+
+    /**
+     * Prepares the final payload to be submitted to the Genfin API.
+     *
+     * @param array $data Form input or webhook request data.
+     * @param string $apiGuid Unique API GUID from Genfin auth response.
+     * @return array Prepared payload.
+     */
+    private function preparePayload(array $data, string $apiGuid): array
+    {
+        return [
+            "ipAddress"             => $data['ipAddress'],
+            "guid"                  => $apiGuid,
+            "loanAmount"            => $data['loanAmount'],
+            "tradeHistory"          => filter_var($data['tradeHistory'], FILTER_VALIDATE_BOOLEAN),
+            "turnoverHistory"       => filter_var($data['turnoverHistory'], FILTER_VALIDATE_BOOLEAN),
+            "companyTradingName"    => $data['companyTradingName'],
+            "natureOfBusiness"      => $data['natureOfBusiness'],
+            "loanPurpose"           => $data['loanPurpose'],
+            "premises"              => $data['premises'],
+            "numberEmployees"       => $data['numberEmployees'],
+            "websiteAddress"        => $data['websiteAddress'],
+            "hearAboutUs"           => $data['hearAboutUs'],
+            "firstName"             => $data['firstName'],
+            "lastName"              => $data['lastName'],
+            "emailAddress"          => $data['emailAddress'],
+            "primaryContactNumber"  => $data['primaryContactNumber'],
+            "productSelection"      => $data['productSelection'],
+            "source"                => $data['source'],
+            "companyRegNumber"      => $data['companyRegNumber'],
+            "affiliateNumber"       => "SMESouthAfrica",
+            "autoEmail"             => filter_var($data['autoEmail'], FILTER_VALIDATE_BOOLEAN),
+            "confirmConsent"        => filter_var($data['confirmConsent'], FILTER_VALIDATE_BOOLEAN),
+            "extLinkID"             => "extLink",
+        ];
+    }
+
+    /**
+     * Handles Guzzle request exceptions and logs the error.
+     *
+     * @param RequestException $e
+     * @param string $context Context message for logging.
+     * @return array Formatted error details.
+     */
+    private function handleException(RequestException $e, string $context): array
+    {
+        $error = [
+            'error' => true,
+            'message' => $e->getMessage(),
+            'status' => $e->hasResponse() ? $e->getResponse()->getStatusCode() : null,
+            'body' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
+        ];
+
+        $this->logger->error($context, $error);
+        return $error;
+    }
+
+    /**
+     * Handles general exceptions and logs the error.
+     *
+     * @param \Exception $e
+     * @param string $context Context message for logging.
+     * @return array Formatted error details.
+     */
+    private function handleGenericException(\Exception $e, string $context): array
+    {
+        $this->logger->error($context, ['message' => $e->getMessage()]);
+
+        return [
+            'error' => true,
+            'message' => 'Unexpected error: ' . $e->getMessage(),
+        ];
     }
 }

@@ -11,9 +11,12 @@ use Monolog\Handler\StreamHandler;
 
 require __DIR__ . '/../vendor/autoload.php';
 
+
 // Load environment variables
 $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
+
+require __DIR__ . '/../bootstrap/database.php';
 
 // Set up DI container
 $container = new Container();
@@ -35,7 +38,6 @@ AppFactory::setContainer($container);
 $app = AppFactory::create();
 
 // ✅ Define Routes
-$app->get('/', [GenfinController::class, 'index']);
 $app->post('/webhook', [GenfinController::class, 'webhook']);
 
 $app->run();
