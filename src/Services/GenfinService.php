@@ -4,6 +4,8 @@ namespace App\Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
+use libphonenumber\NumberParseException;
+use libphonenumber\PhoneNumberUtil;
 use Psr\Log\LoggerInterface;
 use App\Models\WebhookLog;
 
@@ -175,7 +177,7 @@ class GenfinService
             "firstName"             => $data['firstName'],
             "lastName"              => $data['lastName'],
             "emailAddress"          => $data['emailAddress'],
-            "primaryContactNumber"  => $data['primaryContactNumber'],
+            "primaryContactNumber"  => $this->normalizeSouthAfricanNumber( $data['primaryContactNumber'] ),
             "productSelection"      => $data['productSelection'],
             "source"                => $data['source'],
             "companyRegNumber"      => $data['companyRegNumber'],
@@ -221,5 +223,26 @@ class GenfinService
             'error' => true,
             'message' => 'Unexpected error: ' . $e->getMessage(),
         ];
+    }
+
+    private function normalizeSouthAfricanNumber(string $input): ?string
+    {
+        $phoneUtil = PhoneNumberUtil::getInstance();
+
+        try {
+            $numberProto = $phoneUtil->parse($input, 'ZA'); // ZA = South Africa
+            if ($phoneUtil->isValidNumber($numberProto)) {
+                // Get the national number as string (e.g., 821234567)
+                $nationalNumber = $numberProto->getNationalNumber();
+
+                // Prefix with 0 to get local format
+                return '0' . $nationalNumber;
+            }
+        } catch (NumberParseException $e) {
+            // Handle error or log
+            return null;
+        }
+
+        return null;
     }
 }

@@ -29,6 +29,10 @@ class ComposerStaticInit026509606a55be5c56c243e48adc6597
         array (
             'voku\\' => 5,
         ),
+        'l' => 
+        array (
+            'libphonenumber\\' => 15,
+        ),
         'S' => 
         array (
             'Symfony\\Polyfill\\Php83\\' => 23,
@@ -78,6 +82,7 @@ class ComposerStaticInit026509606a55be5c56c243e48adc6597
             'GuzzleHttp\\Promise\\' => 19,
             'GuzzleHttp\\' => 11,
             'GrahamCampbell\\ResultType\\' => 26,
+            'Giggsey\\Locale\\' => 15,
         ),
         'F' => 
         array (
@@ -109,6 +114,10 @@ class ComposerStaticInit026509606a55be5c56c243e48adc6597
         'voku\\' => 
         array (
             0 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
+        ),
+        'libphonenumber\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/giggsey/libphonenumber-for-php/src',
         ),
         'Symfony\\Polyfill\\Php83\\' => 
         array (
@@ -230,6 +239,10 @@ class ComposerStaticInit026509606a55be5c56c243e48adc6597
         'GrahamCampbell\\ResultType\\' => 
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
+        ),
+        'Giggsey\\Locale\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/giggsey/locale/src',
         ),
         'Fig\\Http\\Message\\' => 
         array (
