@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class WebhookLog extends Model
+class WebhookLogModel extends Model
 {
     protected $table = 'webhook_logs'; // Your table name
     protected $fillable = [

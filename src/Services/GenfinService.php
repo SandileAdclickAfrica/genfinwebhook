@@ -7,7 +7,8 @@ use GuzzleHttp\Exception\RequestException;
 use libphonenumber\NumberParseException;
 use libphonenumber\PhoneNumberUtil;
 use Psr\Log\LoggerInterface;
-use App\Models\WebhookLog;
+use App\Models\WebhookLogModel;
+use App\Models\PayloadModel;
 
 /**
  * Service class for interacting with the Genfin API.
@@ -125,12 +126,21 @@ class GenfinService
             $body = json_decode($response->getBody(), true);
 
             // Log request/response to database
-            WebhookLog::create([
+            $webhookLogID = WebhookLogModel::create([
                 'payload' => json_encode($payload),
                 'response' => json_encode($body),
                 'status_code' => $response->getStatusCode(),
                 'ip_address' => $payloadData['ipAddress'] ?? null,
             ]);
+
+            PayloadModel::create(
+                array_merge(
+                    [
+                        'webhook_log_id' => $webhookLogID->id
+                    ],
+                    $payload
+                )
+            );
 
             $this->logger->info('Genfin API Lead Response:', $body);
             return $body;
