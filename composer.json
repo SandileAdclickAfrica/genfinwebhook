@@ -8,7 +8,8 @@
         "php-di/php-di": "^7.0",
         "monolog/monolog": "^3.9",
         "illuminate/database": "^12.19",
-        "giggsey/libphonenumber-for-php": "^9.0"
+        "giggsey/libphonenumber-for-php": "^9.0",
+        "ramsey/uuid": "^4.9"
     },
     "autoload": {
         "psr-4": {

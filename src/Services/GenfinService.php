@@ -9,6 +9,7 @@ use libphonenumber\PhoneNumberUtil;
 use Psr\Log\LoggerInterface;
 use App\Models\WebhookLogModel;
 use App\Models\PayloadModel;
+use Ramsey\Uuid\Uuid;
 
 /**
  * Service class for interacting with the Genfin API.
@@ -127,6 +128,7 @@ class GenfinService
 
             // Log request/response to database
             $webhookLogID = WebhookLogModel::create([
+                'extLinkID' => $payload['extLinkID'],
                 'payload' => json_encode($payload),
                 'response' => json_encode($body),
                 'status_code' => $response->getStatusCode(),
@@ -191,10 +193,10 @@ class GenfinService
             "productSelection"      => $data['productSelection'],
             "source"                => $data['source'],
             "companyRegNumber"      => $data['companyRegNumber'],
-            "affiliateNumber"       => "SMESouthAfrica",
+            "affiliateNumber"       => $data['affiliateNumber'],
             "autoEmail"             => filter_var($data['autoEmail'], FILTER_VALIDATE_BOOLEAN),
             "confirmConsent"        => filter_var($data['confirmConsent'], FILTER_VALIDATE_BOOLEAN),
-            "extLinkID"             => "extLink",
+            "extLinkID"             => 'SME-'.$this->generateUniqueExtLinkID(),
         ];
     }
 
@@ -254,5 +256,20 @@ class GenfinService
         }
 
         return null;
+    }
+
+    /**
+     * Generates a unique extLinkID (UUID) not already used in the payloads table.
+     *
+     * @return string
+     */
+    private function generateUniqueExtLinkID(): string
+    {
+        do {
+            $uuid = Uuid::uuid4()->toString();
+            $exists = PayloadModel::where('extLinkID', $uuid)->exists();
+        } while ($exists);
+
+        return $uuid;
     }
 }
